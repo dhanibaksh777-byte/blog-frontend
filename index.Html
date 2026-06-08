@@ -1,0 +1,364 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLOGR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #050810; --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.10); --accent: #6C63FF;
+      --accent2: #FF6584; --accent3: #43E8B0;
+      --text: #F0F0FF; --muted: rgba(240,240,255,0.45);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+    .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.15; animation: drift 12s ease-in-out infinite alternate; pointer-events: none; }
+    .orb1 { width:500px; height:500px; background:#6C63FF; top:-100px; left:-100px; }
+    .orb2 { width:400px; height:400px; background:#FF6584; bottom:-80px; right:-80px; animation-delay:-4s; }
+    .orb3 { width:300px; height:300px; background:#43E8B0; top:40%; left:40%; animation-delay:-8s; }
+    @keyframes drift { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,30px) scale(1.1)} }
+    nav { position:sticky; top:0; z-index:100; background:rgba(5,8,16,0.8); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,0.08); padding:0 2rem; height:60px; display:flex; align-items:center; justify-content:space-between; }
+    .logo { font-family:'Syne'; font-weight:800; font-size:1.3rem; background:linear-gradient(135deg,#6C63FF,#43E8B0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; cursor:pointer; }
+    .nav-btns { display:flex; gap:10px; align-items:center; }
+    .btn { padding:9px 18px; border-radius:10px; font-family:'DM Sans'; font-size:0.85rem; font-weight:500; cursor:pointer; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--text); transition:all 0.2s; }
+    .btn:hover { background:rgba(255,255,255,0.08); transform:translateY(-1px); }
+    .btn-primary { background:linear-gradient(135deg,#6C63FF,#8B85FF); border-color:rgba(108,99,255,0.5); color:#fff; box-shadow:0 4px 20px rgba(108,99,255,0.3); }
+    .btn-primary:hover { box-shadow:0 6px 28px rgba(108,99,255,0.5); }
+    .btn-danger { background:rgba(255,101,132,0.1); border-color:rgba(255,101,132,0.3); color:var(--accent2); }
+    .page { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:2rem 1rem; }
+    .glass-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:16px; backdrop-filter:blur(20px); box-shadow:0 8px 32px rgba(0,0,0,0.5); transition:all 0.25s; }
+    .glass-card:hover { border-color:rgba(108,99,255,0.3); transform:translateY(-3px); }
+    input, textarea { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:10px; padding:10px 14px; color:var(--text); font-family:'DM Sans'; font-size:0.9rem; outline:none; width:100%; transition:border-color 0.2s; }
+    input:focus, textarea:focus { border-color:rgba(108,99,255,0.5); }
+    input::placeholder, textarea::placeholder { color:var(--muted); }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    @media(max-width:600px){ .grid-2{grid-template-columns:1fr} }
+    .tag { padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:500; border:1px solid; display:inline-block; color:#6C63FF; border-color:rgba(108,99,255,0.3); background:rgba(108,99,255,0.08); }
+    .muted { color:var(--muted); font-size:0.82rem; }
+    .error { color:var(--accent2); font-size:0.82rem; margin-top:6px; }
+    .avatar { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.8rem; flex-shrink:0; background:linear-gradient(135deg,#6C63FF,#FF6584); }
+    #app { min-height: 100vh; }
+    .hidden { display: none !important; }
+    .post-img { width:100%; height:180px; object-fit:cover; display:block; border-radius:16px 16px 0 0; }
+    .upload-label { border:1px dashed rgba(108,99,255,0.3); border-radius:10px; padding:10px 16px; cursor:pointer; color:var(--muted); font-size:0.85rem; display:flex; align-items:center; gap:8px; transition:all 0.2s; }
+    .upload-label:hover { border-color:rgba(108,99,255,0.6); color:var(--accent); }
+    .comment { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+    .comment:last-child { border-bottom:none; }
+    #toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(100px); background:rgba(108,99,255,0.15); backdrop-filter:blur(20px); border:1px solid rgba(108,99,255,0.3); border-radius:12px; padding:12px 24px; font-size:0.88rem; color:#fff; transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index:999; white-space:nowrap; }
+  </style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<nav>
+  <div class="logo" onclick="showPage('home')">BLOGR</div>
+  <div class="nav-btns" id="nav-btns">
+    <button class="btn" onclick="showPage('login')">Login</button>
+    <button class="btn btn-primary" onclick="showPage('register')">Register</button>
+  </div>
+</nav>
+
+<div id="app">
+
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page">
+    <div style="margin-bottom:2rem">
+      <h1 style="font-family:'Syne';font-size:2rem;font-weight:800">Feed ✦</h1>
+      <p class="muted">Latest posts from the community</p>
+    </div>
+
+    <!-- POST FORM (logged in only) -->
+    <div id="post-form-wrap" class="hidden">
+      <div class="glass-card" style="padding:1.5rem;margin-bottom:1.5rem">
+        <h3 style="font-family:'Syne';font-weight:700;margin-bottom:1rem">New Post ✦</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <input id="post-title" placeholder="Title...">
+          <textarea id="post-content" placeholder="Content..." rows="4" style="resize:vertical"></textarea>
+          <label class="upload-label">
+            🖼️ <span id="img-label">Attach image (optional)</span>
+            <input type="file" id="post-image" accept="image/*" style="display:none" onchange="updateImgLabel(this)">
+          </label>
+          <p id="post-error" class="error hidden"></p>
+          <button class="btn btn-primary" onclick="createPost()">Publish →</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="posts-grid" class="grid-2"></div>
+    <p id="no-posts" class="muted hidden" style="text-align:center;padding:2rem">No posts yet — be the first to publish! 🚀</p>
+    <p id="posts-loading" class="muted" style="text-align:center;padding:2rem">Loading...</p>
+  </div>
+
+  <!-- LOGIN PAGE -->
+  <div id="page-login" class="page hidden" style="max-width:420px;padding-top:5rem">
+    <div class="glass-card" style="padding:2rem">
+      <h2 style="font-family:'Syne';font-size:1.6rem;font-weight:800;margin-bottom:0.4rem">Welcome back</h2>
+      <p class="muted" style="margin-bottom:1.5rem">Login to your account</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <input id="login-email" placeholder="Email" type="email">
+        <input id="login-password" placeholder="Password" type="password">
+        <p id="login-error" class="error hidden"></p>
+        <button class="btn btn-primary" onclick="doLogin()">Login →</button>
+      </div>
+      <p class="muted" style="margin-top:1rem;text-align:center">No account? <span style="color:#6C63FF;cursor:pointer" onclick="showPage('register')">Register</span></p>
+    </div>
+  </div>
+
+  <!-- REGISTER PAGE -->
+  <div id="page-register" class="page hidden" style="max-width:420px;padding-top:5rem">
+    <div class="glass-card" style="padding:2rem">
+      <h2 style="font-family:'Syne';font-size:1.6rem;font-weight:800;margin-bottom:0.4rem">Create account</h2>
+      <p class="muted" style="margin-bottom:1.5rem">Join the community</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <input id="reg-username" placeholder="Username">
+        <input id="reg-email" placeholder="Email" type="email">
+        <input id="reg-password" placeholder="Password" type="password">
+        <p id="reg-error" class="error hidden"></p>
+        <button class="btn btn-primary" onclick="doRegister()">Register →</button>
+      </div>
+      <p class="muted" style="margin-top:1rem;text-align:center">Have account? <span style="color:#6C63FF;cursor:pointer" onclick="showPage('login')">Login</span></p>
+    </div>
+  </div>
+
+  <!-- POST DETAIL PAGE -->
+  <div id="page-detail" class="page hidden" style="max-width:700px">
+    <button class="btn" onclick="showPage('home')" style="margin-bottom:1.5rem">← Back</button>
+    <div id="detail-content"></div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://cgpqtvewgyzzuwzsknoa.supabase.co'
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncHF0dmV3Z3l6enV3enNrbm9hIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDc2MjMzOSwiZXhwIjoyMDk2MzM4MzM5fQ.QaIWCr9ak9znu8GvU2XhsuYqNFg4Yep8Mur6slOkmXY'
+  const API_URL = 'https://bog-api-backend.vercel.app/'
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  let currentUser = null
+  let currentToken = null
+
+  // Init
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      currentUser = data.session.user
+      currentToken = data.session.access_token
+      updateNav()
+    }
+    loadPosts()
+  })
+
+  sb.auth.onAuthStateChange((_e, session) => {
+    currentUser = session?.user ?? null
+    currentToken = session?.access_token ?? null
+    updateNav()
+  })
+
+  function updateNav() {
+    const btns = document.getElementById('nav-btns')
+    const form = document.getElementById('post-form-wrap')
+    if (currentUser) {
+      btns.innerHTML = `<span class="muted">${currentUser.email}</span><button class="btn" onclick="doLogout()">Logout</button>`
+      form.classList.remove('hidden')
+    } else {
+      btns.innerHTML = `<button class="btn" onclick="showPage('login')">Login</button><button class="btn btn-primary" onclick="showPage('register')">Register</button>`
+      form.classList.add('hidden')
+    }
+  }
+
+  function showPage(page) {
+    document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'))
+    document.getElementById('page-' + page).classList.remove('hidden')
+    if (page === 'home') loadPosts()
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast')
+    t.textContent = msg
+    t.style.transform = 'translateX(-50%) translateY(0)'
+    setTimeout(() => t.style.transform = 'translateX(-50%) translateY(100px)', 2500)
+  }
+
+  // AUTH
+  async function doLogin() {
+    const email = document.getElementById('login-email').value
+    const password = document.getElementById('login-password').value
+    const err = document.getElementById('login-error')
+    console.log(email, password)
+    const { error } = await sb.auth.signInWithPassword({ email, password })
+    if (error) { err.textContent = error.message; err.classList.remove('hidden'); return }
+    showPage('home')
+  }
+
+async function doRegister() {
+    const username = document.getElementById('reg-username').value
+    const email = document.getElementById('reg-email').value
+    const password = document.getElementById('reg-password').value
+    const err = document.getElementById('reg-error')
+    const { data, error } = await sb.auth.signUp({ email, password })
+    if (error) { err.textContent = error.message; err.classList.remove('hidden'); return }
+    const token = data.session?.access_token
+    if (!token) { err.textContent = 'Check your email to confirm'; err.classList.remove('hidden'); return }
+    await axios.post(`${API_URL}/auth/register`, { username, email }, {
+        headers: { Authorization: `Bearer ${token}` }
+    })
+    currentToken = token
+    currentUser = data.session.user
+    updateNav()
+    showToast('Account created! 🎉')
+    showPage('home')
+  }
+
+  async function doLogout() {
+    await sb.auth.signOut()
+    showPage('home')
+  }
+
+  // POSTS
+  async function loadPosts() {
+    const grid = document.getElementById('posts-grid')
+    const loading = document.getElementById('posts-loading')
+    const noPosts = document.getElementById('no-posts')
+    loading.classList.remove('hidden')
+    grid.innerHTML = ''
+    noPosts.classList.add('hidden')
+    const res = await axios.get(`${API_URL}/posts/`)
+    loading.classList.add('hidden')
+    const posts = res.data
+    if (!posts.length) { noPosts.classList.remove('hidden'); return }
+    posts.forEach(post => {
+      const card = document.createElement('div')
+      card.className = 'glass-card'
+      card.style.cursor = 'pointer'
+      card.style.overflow = 'hidden'
+      card.onclick = () => loadPostDetail(post.id)
+      card.innerHTML = `
+        ${post.image_url ? `<img src="${post.image_url}" class="post-img">` : ''}
+        <div style="padding:1.2rem">
+          <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+            <span class="tag">Blog</span>
+            <span class="muted" style="margin-left:auto">${new Date(post.created_at).toLocaleDateString()}</span>
+          </div>
+          <h3 style="font-family:'Syne';font-size:1.05rem;font-weight:700;margin-bottom:6px;line-height:1.3">${post.title}</h3>
+          <p style="font-size:0.83rem;color:var(--muted);line-height:1.6;margin-bottom:1rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${post.content}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span class="muted">Author #${post.author_id}</span>
+            <div style="display:flex;gap:12px">
+              <span style="font-size:0.82rem;color:var(--muted)">♥</span>
+              <span style="font-size:0.82rem;color:var(--muted)">💬</span>
+            </div>
+          </div>
+        </div>`
+      grid.appendChild(card)
+    })
+  }
+
+  async function createPost() {
+    const title = document.getElementById('post-title').value
+    const content = document.getElementById('post-content').value
+    const image = document.getElementById('post-image').files[0]
+    const err = document.getElementById('post-error')
+    if (!title || !content) { err.textContent = 'Title and content required'; err.classList.remove('hidden'); return }
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('content', content)
+    if (image) formData.append('image', image)
+    try {
+      console.log('token:', currentToken)
+      await axios.post(`${API_URL}/posts/`, formData, { headers: { Authorization: `Bearer ${currentToken}` } })
+      document.getElementById('post-title').value = ''
+      document.getElementById('post-content').value = ''
+      document.getElementById('post-image').value = ''
+      document.getElementById('img-label').textContent = 'Attach image (optional)'
+      err.classList.add('hidden')
+      showToast('Post published! 🚀')
+      loadPosts()
+    } catch { err.textContent = 'Failed to create post'; err.classList.remove('hidden') }
+  }
+
+  async function loadPostDetail(id) {
+    showPage('detail')
+    const res = await axios.get(`${API_URL}/posts/${id}`)
+    const post = res.data
+    const commentsRes = await axios.get(`${API_URL}/comments/${id}`)
+    const comments = commentsRes.data
+    const detail = document.getElementById('detail-content')
+    detail.innerHTML = `
+      <div class="glass-card" style="overflow:hidden;margin-bottom:1.5rem">
+        ${post.image_url ? `<img src="${post.image_url}" style="width:100%;height:280px;object-fit:cover">` : ''}
+        <div style="padding:2rem">
+          <div style="display:flex;gap:8px;margin-bottom:1rem;align-items:center">
+            <span class="tag">Blog</span>
+            <span class="muted" style="margin-left:auto">${new Date(post.created_at).toLocaleDateString()}</span>
+          </div>
+          <h1 style="font-family:'Syne';font-size:1.8rem;font-weight:800;margin-bottom:1rem;line-height:1.2">${post.title}</h1>
+          <p style="line-height:1.8;color:var(--muted);margin-bottom:2rem">${post.content}</p>
+          <div style="display:flex;gap:10px">
+            <button class="btn" onclick="toggleLike(${post.id}, this)">♥ Like</button>
+            ${currentUser ? `<button class="btn btn-danger" onclick="deletePost(${post.id})">Delete</button>` : ''}
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem">
+        <h4 style="font-family:'Syne';font-weight:700;margin-bottom:1rem">Comments (${comments.length})</h4>
+        ${currentUser ? `
+        <div style="display:flex;gap:8px;margin-bottom:1.5rem">
+          <input id="comment-input" placeholder="Write a comment...">
+          <button class="btn btn-primary" onclick="addComment(${post.id})" style="white-space:nowrap">Send</button>
+        </div>` : ''}
+        <div id="comments-list">
+          ${comments.map(c => `
+            <div class="comment">
+              <div class="avatar" style="width:32px;height:32px;font-size:0.7rem">#${c.author_id}</div>
+              <div style="flex:1">
+                <p style="font-size:0.85rem;line-height:1.5">${c.content}</p>
+                <p class="muted" style="font-size:0.72rem;margin-top:4px">${new Date(c.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>`).join('')}
+          ${!comments.length ? '<p class="muted" style="text-align:center;padding:1rem">No comments yet — be the first! 👇</p>' : ''}
+        </div>
+      </div>`
+  }
+
+  async function toggleLike(postId, btn) {
+    if (!currentUser) { showPage('login'); return }
+    try {
+      await axios.post(`${API_URL}/likes/${postId}`, {}, { headers: { Authorization: `Bearer ${currentToken}` } })
+      btn.style.color = 'var(--accent2)'
+      showToast('Liked! ♥')
+    } catch {
+      await axios.delete(`${API_URL}/likes/${postId}`, { headers: { Authorization: `Bearer ${currentToken}` } })
+      btn.style.color = ''
+      showToast('Unliked')
+    }
+  }
+
+  async function deletePost(id) {
+    await axios.delete(`${API_URL}/posts/${id}`, { headers: { Authorization: `Bearer ${currentToken}` } })
+    showToast('Post deleted')
+    showPage('home')
+  }
+
+  async function addComment(postId) {
+    const input = document.getElementById('comment-input')
+    if (!input.value.trim()) return
+    await axios.post(`${API_URL}/comments/${postId}`, { content: input.value }, { headers: { Authorization: `Bearer ${currentToken}` } })
+    input.value = ''
+    loadPostDetail(postId)
+    showToast('Comment added! 💬')
+  }
+
+  function updateImgLabel(input) {
+    document.getElementById('img-label').textContent = input.files[0]?.name || 'Attach image (optional)'
+  }
+</script>
+</body>
+</html>
